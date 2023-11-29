@@ -1,0 +1,131 @@
+import telebot
+from datetime import datetime
+from serpapi import GoogleSearch
+TOKEN = '6620610296:AAGNyCAQU0se1Y3HQHPWBPBOeADZ-c0XV0Y'
+SERPAPI_API_KEY = '14b761c3efac91612f1ac62ddb8ad8db41413be3a17efbfe611c128d1bbc0d6e'
+bot = telebot.TeleBot(TOKEN,) 
+
+date_time = f"{datetime.utcnow():%Y%m%d}"
+
+
+
+def trends() :
+  params = {
+    "engine": "google_trends_trending_now",
+    "frequency": "daily", 
+    "date": date_time,
+    "api_key": SERPAPI_API_KEY ,
+  }
+
+  search = GoogleSearch(params)
+  results = search.get_dict()
+  return results["daily_searches"]
+
+trends_all = trends()
+i = 0
+top_list = []
+while i < 6 :
+  
+  for item in trends_all :
+     for key in item['searches'] :
+              
+      top_list.append(key['query'])
+      i += 1
+
+# serch parameter
+def serch(message) :
+  params = {
+      "engine": "google_videos",
+      "q": message.text,
+      "data_type": "RELATED_QUERIES",
+      "api_key": SERPAPI_API_KEY
+    }
+
+  search = GoogleSearch(params)
+  results = search.get_dict()
+  video_results = results["video_results"]
+  if video_results :
+    i=0
+    while (i < 5) :
+      for item in video_results :  
+        if item['displayed_link'] == "www.youtube.com › watch" :  
+          bot.send_message(message.chat.id,f"the top serch for {item['displayed_link']} have lik : {item['link']}")
+          i += 1
+  else :
+      bot.send_message(message.chat.id,"search is empty")
+      
+
+
+key_markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard = True)
+for i in top_list :
+  key_markup.add(i)
+  
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    if message.text == '/start' :
+      name = bot.get_me()
+      bot.send_message(message.chat.id,f"welcom to {name.first_name} bot!!!")
+      bot.send_message(message.chat.id,"ازبین ترندهای امروز موضوع مورد نظر خود را انتخاب کنید ",reply_markup= key_markup)
+    else :
+      bot.reply_to(message, 'help')
+
+@bot.message_handler(func=lambda message: True)
+def echo_all(message): 
+    if message.text in top_list :
+       serch(message)    
+    
+    else :
+      bot.reply_to(message,message.text)  
+
+
+bot.infinity_polling()
+
+
+
+
+#******************************youtuob
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.chat.id, 'Welcome! Send a YouTube video link to get started.')
+
+@bot.message_handler(func=lambda message: True)
+def download_video(message):
+    try:
+        video_url = message.text
+        print(video_url)
+        yt = YouTube(video_url)
+        stream = yt.streams.get_highest_resolution()
+        stream.download()
+        bot.send_video(message.chat.id, open(yt.title + '.mp4', 'rb'))
+    except Exception as e:
+        bot.send_message(message.chat.id, 'An error occurred. Please make sure you send a valid YouTube video link.')
+
+
+
+#*************************************** seke , dollar
+# symbol_list = ['usd','sekkeh','nim','dirham_dubai']
+# key_markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard = True)
+# for i in symbol_list :
+#   key_markup.add(i)
+
+
+
+    
+
+# @bot.message_handler(func=lambda message: True)
+# def echo_all(message): 
+#     symbol = message.text.lower()  
+#     if symbol in symbol_list :
+#         r = requests.get('http://api.navasan.tech/latest/',
+#                         params=
+#                         {
+#                         'api_key' : NAVASAN_TOKEN ,
+#                         'item' : message.text,
+                        
+#                         }
+#                         )
+#         bot.send_message(message.chat.id,r.json()[symbol]['value'])
+#         print(r.json()[symbol]['value'])
+#     else :
+#         bot.send_message(message.chat.id,'select from bot item ')
